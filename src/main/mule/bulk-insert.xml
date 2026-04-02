@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="030988da-4909-46ea-93bb-c7e035250ea9" >
+		<file:connection workingDir="C:\Users\saivi\Downloads" />
+	</file:config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="42f956b6-8b60-4f77-bb04-afae6928b567" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="86c0a036-9b9e-4d0a-bcf9-0112ed94cdd8" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Saivivek@103" database="mule20" />
+	</db:config>
+	<flow name="bulk-insertFlow" doc:id="286770e9-761f-4d93-8ac6-400dc52de211" >
+		<http:listener doc:name="Listener" doc:id="89262cf9-9467-4557-affe-8f255899ea44" path="/bulk-insert" config-ref="HTTP_Listener_config"/>
+		<logger level="INFO" doc:name="Before Read Logger" doc:id="484071a7-f8b4-468c-9249-49b619003a0d" message="Staring logger"/>
+		<file:read doc:name="Read" doc:id="48b7c027-619b-401e-bb2a-44740599c033" config-ref="File_Config" path="C:\Users\saivi\Downloads\employees_100.csv"/>
+		<logger level="INFO" doc:name="After Read" doc:id="7ed3aeb1-8bc3-4201-bb00-aa887c233bd2" />
+		<ee:transform doc:name="Transform Message" doc:id="459833d3-de5b-4ff1-a4f8-ddcc52e0ccf8" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="After converting to json" doc:id="1a1d7a00-e254-49c9-b636-8342d37ff8eb" />
+		<db:bulk-insert doc:name="Bulk insert" doc:id="cb3a9f51-c89a-46a0-ae00-431ae2260a9f" config-ref="Database_Config">
+			<db:bulk-input-parameters ><![CDATA[#[%dw 2.0
+output application/json
+---
+(payload as Array) map ((item, index) -> 
+{
+username:item.username,
+id:item.id,
+designation:item.designation,
+salary:item.salary,
+age:item.age
+
+})]]]></db:bulk-input-parameters>
+			<db:sql ><![CDATA[INSERT INTO employees (username, id, designation, salary, age)
+VALUES (:username, :id,:designation,:salary,:age);]]></db:sql>
+		</db:bulk-insert>
+		<set-payload value='"successfully insertion completed"' doc:name="Set Payload" doc:id="5a2eb427-0f41-44a7-a803-766c6bfff338" />
+	</flow>
+</mule>
